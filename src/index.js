@@ -1,2 +1,2 @@
 import React from 'react'
-export {ConfigProvider, ConfigContext} from "./useConfig"
+export {ConfigProvider, useConfig} from "./useConfig"
