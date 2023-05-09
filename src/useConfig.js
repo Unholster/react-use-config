@@ -21,8 +21,9 @@ export function ConfigProvider({ children, configPath = "config.json" }) {
         const data = json || {}
         setConfig(data)
       })
-      .catch(() => {
+      .catch((err) => {
         setConfig({})
+        console.warn(`Couldn't load config from ${configPath}:\n ${err}`)
       })
   }, [])
 
