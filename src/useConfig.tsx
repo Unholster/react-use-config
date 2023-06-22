@@ -1,10 +1,6 @@
-import React, { ReactNode, createContext, useContext, useEffect, useState } from "react"
+import React, { Context, ReactNode, createContext, useContext, useEffect, useState } from "react"
 
-const ConfigContext = createContext<unknown>({})
-
-export function useConfig<AdaptedConfig = unknown>() {
-  return useContext<AdaptedConfig | unknown>(ConfigContext)
-}
+type GenericConfig<T extends object> = T
 
 interface ConfigProviderProps<Config = object, AdaptedConfig = Config> {
   children: ReactNode
@@ -12,12 +8,21 @@ interface ConfigProviderProps<Config = object, AdaptedConfig = Config> {
   adapter?: (config: Config) => AdaptedConfig
 }
 
-export function ConfigProvider<Config, AdaptedConfig>({
+const ConfigContext = createContext<GenericConfig<object>>({})
+
+export function useConfig<T extends object>() {
+  return useContext<GenericConfig<T>>(ConfigContext as unknown as Context<GenericConfig<T>>)
+}
+
+export function ConfigProvider<
+  Config extends object, 
+  AdaptedConfig extends object = Config
+>({
   children,
   configPath = "config.json",
   adapter,
 }: ConfigProviderProps) {
-  const [config, setConfig] = useState<Config | AdaptedConfig | object>({})
+  const [config, setConfig] = useState<AdaptedConfig>({} as AdaptedConfig)
 
   useEffect(() => {
     fetch(configPath, {
@@ -33,7 +38,7 @@ export function ConfigProvider<Config, AdaptedConfig>({
         setConfig(adaptedData)
       })
       .catch((err) => {
-        setConfig({})
+        setConfig({} as AdaptedConfig)
         console.warn(`Couldn't load config from ${configPath}:\n ${err}`)
       })
   }, [])
