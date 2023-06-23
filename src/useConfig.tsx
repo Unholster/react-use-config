@@ -1,6 +1,10 @@
 import React, { Context, ReactNode, createContext, useContext, useEffect, useState } from "react"
 
-type GenericConfig<T extends object> = T
+type GenericConfig<T extends object> = {
+  isError: boolean
+  isLoading: boolean
+  config: T
+}
 
 interface ConfigProviderProps<Config = object, AdaptedConfig = Config> {
   children: ReactNode
@@ -8,23 +12,32 @@ interface ConfigProviderProps<Config = object, AdaptedConfig = Config> {
   adapter?: (config: Config) => AdaptedConfig
 }
 
-const ConfigContext = createContext<GenericConfig<object>>({})
+const ConfigContext = createContext<GenericConfig<object>>({
+  isError: false,
+  isLoading: true,
+  config: {}
+})
 
 export function useConfig<T extends object>() {
   return useContext<GenericConfig<T>>(ConfigContext as unknown as Context<GenericConfig<T>>)
 }
 
 export function ConfigProvider<
-  Config extends object, 
+  Config extends object,
   AdaptedConfig extends object = Config
 >({
   children,
   configPath = "config.json",
   adapter,
 }: ConfigProviderProps) {
-  const [config, setConfig] = useState<AdaptedConfig>({} as AdaptedConfig)
+  const initial = adapter ? adapter({}) : {}
+  const [config, setConfig] = useState<AdaptedConfig>(initial as AdaptedConfig)
+  const [isLoading, setIsLoading] = useState<boolean>(true)
+  const [isError, setIsError] = useState<boolean>(false)
 
   useEffect(() => {
+    setIsLoading(true)
+    setIsError(false)
     fetch(configPath, {
       headers: {
         Accept: "application/json",
@@ -39,9 +52,18 @@ export function ConfigProvider<
       })
       .catch((err) => {
         setConfig({} as AdaptedConfig)
+        setIsError(true)
         console.warn(`Couldn't load config from ${configPath}:\n ${err}`)
+      }).finally(() => {
+        setIsLoading(false)
       })
   }, [])
 
-  return <ConfigContext.Provider value={config}>{children}</ConfigContext.Provider>
+  const value = {
+    isLoading,
+    isError,
+    config
+  }
+
+  return <ConfigContext.Provider value={value}>{children}</ConfigContext.Provider>
 }
