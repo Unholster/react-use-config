@@ -54,8 +54,9 @@ export function ConfigProvider<
         setConfig({} as AdaptedConfig)
         setIsError(true)
         console.warn(`Couldn't load config from ${configPath}:\n ${err}`)
+      }).finally(() => {
+        setIsLoading(false)
       })
-    setIsLoading(false)
   }, [])
 
   const value = {
