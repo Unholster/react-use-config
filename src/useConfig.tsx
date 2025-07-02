@@ -1,25 +1,42 @@
-import React, { Context, ReactNode, createContext, useContext, useEffect, useState } from "react"
+import React, { Context, createContext, ReactNode, useContext, useEffect, useMemo, useState } from "react"
+
+type DefaultConfig = { [key: string]: any } | ((...args: any[]) => any)
 
 type GenericConfig<T extends object> = {
   isError: boolean
   isLoading: boolean
-  config: T
+  config: T,
+  defaultConfig: DefaultConfig,
 }
 
 interface ConfigProviderProps<Config = object, AdaptedConfig = Config> {
   children: ReactNode
   configPath: string
-  adapter?: (config: Config) => AdaptedConfig
+  defaultConfig: DefaultConfig
 }
 
 const ConfigContext = createContext<GenericConfig<object>>({
+  config: {},
+  defaultConfig: {},
   isError: false,
   isLoading: true,
-  config: {}
 })
 
-export function useConfig<T extends object>() {
-  return useContext<GenericConfig<T>>(ConfigContext as unknown as Context<GenericConfig<T>>)
+
+function getInitialConfig(defaultConfig: DefaultConfig, config: object): object {
+  if (typeof defaultConfig === "function") {
+    return defaultConfig(config)
+  } 
+    return { ...defaultConfig, ...config }
+  
+}
+
+export function useConfig<T extends object>(localDefault: DefaultConfig = {}) {
+  const context = useContext<GenericConfig<T>>(ConfigContext as unknown as Context<GenericConfig<T>>)
+  const { config, defaultConfig } = context
+  return {...context, config: {
+    ...getInitialConfig(defaultConfig, config), ...getInitialConfig(localDefault, config), ...config
+  }}
 }
 
 export function ConfigProvider<
@@ -27,10 +44,10 @@ export function ConfigProvider<
   AdaptedConfig extends object = Config
 >({
   children,
-  configPath = "config.json",
-  adapter,
+  configPath = "/config.json",
+  defaultConfig = {},
 }: ConfigProviderProps) {
-  const initial = adapter ? adapter({}) : {}
+  const initial = getInitialConfig(defaultConfig, {})
   const [config, setConfig] = useState<AdaptedConfig>(initial as AdaptedConfig)
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [isError, setIsError] = useState<boolean>(false)
@@ -47,8 +64,7 @@ export function ConfigProvider<
       .then((r) => r.json())
       .then((json) => {
         const data = json || {}
-        const adaptedData: AdaptedConfig = adapter ? adapter(data) : data
-        setConfig(adaptedData)
+        setConfig(data)
       })
       .catch((err) => {
         setConfig({} as AdaptedConfig)
@@ -59,11 +75,13 @@ export function ConfigProvider<
       })
   }, [])
 
-  const value = {
-    isLoading,
+
+  const value = useMemo(() => ({
+    config,
+    defaultConfig,
     isError,
-    config
-  }
+    isLoading,
+  }), [config, defaultConfig, isError,  isLoading])
 
   return <ConfigContext.Provider value={value}>{children}</ConfigContext.Provider>
 }
